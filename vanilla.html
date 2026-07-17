@@ -1,0 +1,57 @@
+<!doctype html>
+<!--
+  Minimal WebSession demo (~30 lines of user code).
+
+  1. Create a session SERVER-SIDE with your API key:
+       curl -X POST https://omnidim.io/api/v1/sessions/create \
+         -H "Authorization: Bearer $OMNIDIM_API_KEY" \
+         -H "Content-Type: application/json" \
+         -d '{"agent_id": 123, "type": "voice"}'
+  2. Paste the returned ws_url below (never ship your API key to a page).
+  3. Open this file via a local server, e.g.: npx serve examples
+-->
+<html lang="en">
+<meta charset="utf-8" />
+<title>OmniDimension web call demo</title>
+<body>
+  <button id="start">Start call</button>
+  <button id="mute">Mute</button>
+  <button id="stop">Hang up</button>
+  <p id="status">idle</p>
+  <div id="transcript"></div>
+
+  <script src="../dist/index.global.js"></script>
+  <script>
+    const session = new OmnidimensionClient.WebSession();
+    const wsUrl = prompt('Paste the ws_url from POST /sessions/create');
+    let muted = false;
+
+    session.on('status', (s) => {
+      document.getElementById('status').textContent =
+        typeof s === 'string' ? s : `ended (${s.reason})`;
+    });
+    // Transcript events are cumulative snapshots of the current turn, so
+    // overwrite the current speaker's line; start a new line when the turn
+    // switches to the other speaker.
+    let lastRole = null;
+    let currentLine = null;
+    session.on('transcript', (t) => {
+      if (t.role !== lastRole || !currentLine) {
+        currentLine = document.createElement('p');
+        document.getElementById('transcript').appendChild(currentLine);
+        lastRole = t.role;
+      }
+      currentLine.textContent = `${t.role}: ${t.text}`;
+    });
+    session.on('error', (e) => console.error('session error', e));
+
+    document.getElementById('start').onclick = () => session.start({ wsUrl });
+    document.getElementById('mute').onclick = () => {
+      muted = !muted;
+      session.mute(muted);
+      document.getElementById('mute').textContent = muted ? 'Unmute' : 'Mute';
+    };
+    document.getElementById('stop').onclick = () => session.stop();
+  </script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>@omnidim-ai/client testbed</title>
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; }
+    h1 { font-size: 18px; }
+    button { font-size: 15px; padding: 8px 14px; margin: 4px 6px 4px 0; cursor: pointer; }
+    #status { font-weight: 600; }
+    #transcript { margin-top: 16px; border: 1px solid #ccc; border-radius: 8px; padding: 12px; min-height: 120px; }
+    #transcript p { margin: 4px 0; }
+    .user { color: #1a56db; }
+    .agent { color: #7c3aed; }
+    #log { margin-top: 12px; color: #b91c1c; white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 12px; }
+    .hint { color: #666; font-size: 13px; }
+    fieldset { border: 1px solid #ddd; border-radius: 8px; margin: 12px 0; padding: 10px 12px; }
+    legend { font-size: 13px; color: #444; padding: 0 6px; }
+    label { display: block; font-size: 13px; margin: 6px 0 2px; }
+    input { width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; }
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+  </style>
+</head>
+<body>
+  <h1>@omnidim-ai/client &mdash; local testbed</h1>
+  <p class="hint">
+    <b>Mock</b> needs no backend: it echoes your mic back so you hear yourself and streams fake transcripts.
+    <b>Real</b> creates a session against your backend using the credentials below (the key is sent only to this
+    local testbed server, which calls your backend; it never enters the SDK's WebSocket connection) and connects
+    to the returned ws_url.
+  </p>
+
+  <fieldset>
+    <legend>Real mode credentials (for the "Start (real)" button)</legend>
+    <div class="row">
+      <div>
+        <label for="apiBase">API base URL</label>
+        <input id="apiBase" value="http://localhost:8069" />
+      </div>
+      <div>
+        <label for="agentId">Agent (bot) id</label>
+        <input id="agentId" value="48152" />
+      </div>
+    </div>
+    <label for="apiKey">API key (Bearer)</label>
+    <input id="apiKey" type="password" placeholder="paste your OMNIDIM_API_KEY" autocomplete="off" />
+    <p class="hint">Local testing only. The key is held in this page and posted to the local testbed server on this machine.</p>
+  </fieldset>
+
+  <div>
+    <button id="mock">Start (mock)</button>
+    <button id="real">Start (real)</button>
+    <button id="mute" disabled>Mute</button>
+    <button id="stop" disabled>Hang up</button>
+  </div>
+
+  <p>Status: <span id="status">idle</span></p>
+  <div id="transcript"></div>
+  <div id="log"></div>
+
+  <!-- Live UMD from the public CDN (exactly the script-tag path a customer uses). -->
+  <script src="https://unpkg.com/@omnidim-ai/client@0.1.0"></script>
+  <script>
+    const { WebSession } = OmnidimensionClient;
+    const $ = (id) => document.getElementById(id);
+    let session = null;
+    let muted = false;
+    let lastRole = null;
+    let currentLine = null;
+
+    function log(msg) { $('log').textContent += msg + '\n'; }
+
+    function wire(s) {
+      s.on('status', (st) => {
+        const text = typeof st === 'string' ? st : `ended (${st.reason})`;
+        $('status').textContent = text;
+        const ended = typeof st === 'object';
+        $('mute').disabled = ended;
+        $('stop').disabled = ended;
+        if (ended) { $('mock').disabled = false; $('real').disabled = false; }
+      });
+      s.on('transcript', (t) => {
+        // Cumulative snapshot per turn: overwrite the current speaker's line.
+        if (t.role !== lastRole || !currentLine) {
+          currentLine = document.createElement('p');
+          currentLine.className = t.role;
+          $('transcript').appendChild(currentLine);
+          lastRole = t.role;
+        }
+        currentLine.textContent = `${t.role}: ${t.text}`;
+      });
+      s.on('error', (e) => log('error: ' + e.message));
+    }
+
+    async function start(wsUrl) {
+      $('transcript').innerHTML = '';
+      $('log').textContent = '';
+      lastRole = null; currentLine = null; muted = false;
+      $('mock').disabled = true; $('real').disabled = true;
+      $('mute').textContent = 'Mute';
+      session = new WebSession();
+      wire(session);
+      try {
+        await session.start({ wsUrl });
+      } catch (e) {
+        log('start failed: ' + e.message);
+        $('mock').disabled = false; $('real').disabled = false;
+      }
+    }
+
+    $('mock').onclick = () => {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      start(`${proto}://${location.host}/mock/chat?request_token=sess_mocklocal`);
+    };
+
+    $('real').onclick = async () => {
+      const apiKey = $('apiKey').value.trim();
+      const agentId = $('agentId').value.trim();
+      const apiBase = $('apiBase').value.trim();
+      if (!apiKey || !agentId) { log('Enter an API key and agent id above first.'); return; }
+      $('mock').disabled = true; $('real').disabled = true;
+      try {
+        const res = await fetch('/local/create-session', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ apiKey, agentId, apiBase }),
+        });
+        const body = await res.json();
+        if (!res.ok) { log(`create failed (${res.status}): ${body.error} - ${body.error_description || ''}`); $('mock').disabled = false; $('real').disabled = false; return; }
+        log('session_id=' + body.session_id + ' ws_url=' + body.ws_url);
+        start(body.ws_url);
+      } catch (e) {
+        log('create request failed: ' + e.message);
+        $('mock').disabled = false; $('real').disabled = false;
+      }
+    };
+
+    $('mute').onclick = () => { muted = !muted; session && session.mute(muted); $('mute').textContent = muted ? 'Unmute' : 'Mute'; };
+    $('stop').onclick = () => session && session.stop();
+  </script>
+</body>
+</html>

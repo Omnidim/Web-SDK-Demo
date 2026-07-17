@@ -1,0 +1,16 @@
+{
+  "name": "omnidim-client-fullstack-example",
+  "private": true,
+  "type": "module",
+  "description": "Full-stack example for @omnidim-ai/client: server-side session create + browser WebSession, plus a mock WS server for backend-free testing.",
+  "scripts": {
+    "serve": "node server.mjs",
+    "smoke": "node smoke.mjs"
+  },
+  "dependencies": {
+    "@omnidim-ai/client": "^0.1.0"
+  },
+  "devDependencies": {
+    "ws": "^8.18.0"
+  }
+}
