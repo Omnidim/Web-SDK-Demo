@@ -4,12 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>@omnidim-ai/client playground</title>
-  <meta name="description" content="Try the OmniDimension web call SDK in your browser: paste a ws_url and talk to your agent." />
+  <meta name="description" content="Try the OmniDimension web call SDK in your browser: create a session and talk to your agent." />
   <style>
     :root { color-scheme: light dark; --fg: #111; --muted: #666; --line: #d8d8d8; --accent: #4f46e5; --bg: #fff; --card: #fafafa; }
     @media (prefers-color-scheme: dark) { :root { --fg: #e8e8e8; --muted: #9aa0aa; --line: #333; --accent: #8b8bff; --bg: #0e0f13; --card: #17181d; } }
     * { box-sizing: border-box; }
     body { font: 15px/1.6 system-ui, -apple-system, sans-serif; color: var(--fg); background: var(--bg); max-width: 780px; margin: 0 auto; padding: 32px 18px 64px; }
+    header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
     h1 { font-size: 22px; margin: 0 0 4px; }
     h1 code { font-size: 18px; color: var(--accent); }
     .sub { color: var(--muted); margin: 0 0 24px; }
@@ -19,8 +20,9 @@
     input { width: 100%; padding: 9px 11px; font: inherit; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
     .row { display: flex; gap: 12px; flex-wrap: wrap; }
     .row > div { flex: 1; min-width: 160px; }
-    button { font: inherit; font-weight: 600; padding: 10px 16px; margin: 12px 8px 0 0; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
-    button.secondary { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+    button, a.btn { font: inherit; font-weight: 600; padding: 10px 16px; margin: 12px 8px 0 0; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; text-decoration: none; display: inline-block; }
+    button.secondary, a.btn.secondary { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+    a.btn.secondary { margin: 0; padding: 8px 14px; white-space: nowrap; }
     button:disabled { opacity: .45; cursor: default; }
     .controls { margin: 8px 0 4px; }
     .pill { display: inline-block; font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); }
@@ -30,8 +32,7 @@
     #transcript .agent { color: #7c3aed; }
     @media (prefers-color-scheme: dark) { #transcript .user { color: #7ab0ff; } #transcript .agent { color: #c4a8ff; } }
     #log { margin-top: 10px; font: 12px/1.5 ui-monospace, monospace; color: var(--muted); white-space: pre-wrap; }
-    details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
-    .warn { color: #b45309; font-size: 12px; margin: 6px 0 0; }
+    .warn { color: #b45309; font-size: 12px; margin: 0 0 10px; }
     @media (prefers-color-scheme: dark) { .warn { color: #f0b866; } }
     a { color: var(--accent); }
     .foot { margin-top: 28px; font-size: 13px; color: var(--muted); }
@@ -39,45 +40,35 @@
   </style>
 </head>
 <body>
-  <h1><code>@omnidim-ai/client</code> playground</h1>
-  <p class="sub">Talk to your OmniDimension agent in the browser. Loads the live SDK from a CDN, no build step.</p>
+  <header>
+    <div>
+      <h1><code>@omnidim-ai/client</code> playground</h1>
+      <p class="sub">Create a session with your API key and talk to your agent. Loads the live SDK from a CDN, no build step.</p>
+    </div>
+    <a class="btn secondary" href="https://docs.omnidim.io/docs/api-reference/sessions/createSession#option-b-any-platform-raw-websocket-protocol" target="_blank" rel="noopener">Docs</a>
+  </header>
 
   <div class="card">
-    <h2>1. Connect with a <code class="inline">ws_url</code></h2>
-    <p class="sub" style="margin:0 0 6px">
-      Get one from your server: <code class="inline">POST /api/v1/sessions/create</code> returns a
-      <code class="inline">ws_url</code>. Paste it here and talk. (<a href="https://docs.omnidim.io/docs/sdks/web" target="_blank" rel="noopener">docs</a>)
-    </p>
-    <label for="wsUrl">ws_url</label>
-    <input id="wsUrl" placeholder="wss://live.omnidim.io/chat/start_voice_chat?request_token=sess_..." />
+    <h2>Start a call</h2>
+    <p class="warn">Testing convenience only: this calls your backend directly from the browser, so your API key is exposed to the page and your backend must allow CORS. In production, create the session on your server and hand the browser only the <code class="inline">ws_url</code>.</p>
+    <div class="row">
+      <div>
+        <label for="apiBase">API base URL</label>
+        <input id="apiBase" value="https://omnidim.io/api/v1" />
+      </div>
+      <div>
+        <label for="agentId">Agent (bot) id</label>
+        <input id="agentId" placeholder="48152" />
+      </div>
+    </div>
+    <label for="apiKey">API key</label>
+    <input id="apiKey" type="password" autocomplete="off" placeholder="your API key" />
     <div class="controls">
-      <button id="connect">Start call</button>
+      <button id="createConnect">Create + start call</button>
       <button id="mute" class="secondary" disabled>Mute</button>
       <button id="stop" class="secondary" disabled>Hang up</button>
       <span class="pill" id="status">idle</span>
     </div>
-  </div>
-
-  <div class="card">
-    <details>
-      <summary>Advanced: create a session from an API key (testing only)</summary>
-      <p class="warn">Testing convenience only. This calls your backend directly from the browser, so your API key is exposed to the page and your backend must allow CORS. In production, always create the session on your server and hand the browser only the ws_url.</p>
-      <div class="row">
-        <div>
-          <label for="apiBase">API base URL</label>
-          <input id="apiBase" value="https://omnidim.io/api/v1" />
-        </div>
-        <div>
-          <label for="agentId">Agent (bot) id</label>
-          <input id="agentId" placeholder="48152" />
-        </div>
-      </div>
-      <label for="apiKey">API key</label>
-      <input id="apiKey" type="password" autocomplete="off" placeholder="your API key" />
-      <div class="controls">
-        <button id="createConnect">Create + start call</button>
-      </div>
-    </details>
   </div>
 
   <div id="transcript"></div>
@@ -85,7 +76,7 @@
 
   <p class="foot">
     SDK: <a href="https://www.npmjs.com/package/@omnidim-ai/client" target="_blank" rel="noopener">npm</a> &middot;
-    <a href="https://github.com/Omnidim/OmniDimension-Client-SDK" target="_blank" rel="noopener">source</a> &middot;
+    <a href="https://docs.omnidim.io/docs/sdks/web" target="_blank" rel="noopener">web SDK docs</a> &middot;
     <a href="https://docs.omnidim.io/docs/api-reference/sessions/createSession" target="_blank" rel="noopener">create session API</a>
   </p>
 
@@ -97,7 +88,7 @@
 
     const log = (m) => { $('log').textContent += m + '\n'; };
     function setBusy(busy) {
-      $('connect').disabled = busy; $('createConnect').disabled = busy;
+      $('createConnect').disabled = busy;
       $('mute').disabled = !busy; $('stop').disabled = !busy;
     }
     function wire(s) {
@@ -115,15 +106,14 @@
       s.on('error', (e) => log('error: ' + e.message));
     }
     async function start(wsUrl) {
-      if (!wsUrl) { log('Provide a ws_url first.'); return; }
-      $('transcript').innerHTML = ''; $('log').textContent = ''; lastRole = null; line = null; muted = false;
+      if (!wsUrl) { log('No ws_url to connect to.'); return; }
+      $('transcript').innerHTML = ''; lastRole = null; line = null; muted = false;
       $('mute').textContent = 'Mute'; setBusy(true);
       session = new WebSession(); wire(session);
       try { await session.start({ wsUrl }); }
       catch (e) { log('start failed: ' + e.message); setBusy(false); }
     }
 
-    $('connect').onclick = () => start($('wsUrl').value.trim());
     $('mute').onclick = () => { muted = !muted; session && session.mute(muted); $('mute').textContent = muted ? 'Unmute' : 'Mute'; };
     $('stop').onclick = () => session && session.stop();
 
@@ -132,7 +122,7 @@
       const key = $('apiKey').value.trim();
       const agent = $('agentId').value.trim();
       if (!base || !key || !agent) { log('Fill API base, key, and agent id.'); return; }
-      setBusy(true);
+      $('log').textContent = ''; setBusy(true);
       try {
         const res = await fetch(`${base}/sessions/create`, {
           method: 'POST',
@@ -141,7 +131,6 @@
         });
         const body = await res.json();
         if (!res.ok) { log(`create failed (${res.status}): ${body.error} - ${body.error_description || ''}`); setBusy(false); return; }
-        $('wsUrl').value = body.ws_url;
         log('created session ' + body.session_id);
         start(body.ws_url);
       } catch (e) { log('create request failed (CORS?): ' + e.message); setBusy(false); }
