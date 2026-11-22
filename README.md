@@ -1,7 +1,7 @@
 # OmniDimension Web SDK demo
 
 Live demos for [`@omnidim-ai/client`](https://www.npmjs.com/package/@omnidim-ai/client),
-the browser SDK for OmniDimension web call Sessions (microphone capture, audio
+the browser SDK for OmniDimension web call sessions (microphone capture, audio
 playback, barge-in, transcripts).
 
 ## Live playground
@@ -11,11 +11,11 @@ playback, barge-in, transcripts).
 Paste a `ws_url` from your server (`POST /api/v1/sessions/create`) and talk to
 your agent. The page loads the SDK from the CDN, so there is no build step.
 
-## What's here
+## What is in this repo
 
-- `index.html` - the hosted playground (single file, loads the SDK from unpkg).
-- `vanilla.html` - a minimal ~30-line page.
-- `fullstack/` - the recommended architecture: your server creates the session
+- `index.html`: the hosted playground (single file, loads the SDK from unpkg).
+- `vanilla.html`: a minimal page that starts a session from a pasted `ws_url`.
+- `fullstack/`: the recommended architecture: your server creates the session
   with your API key and hands the browser only the `ws_url`. Includes a mock
   WebSocket server so you can test the whole audio path with no backend.
 
@@ -32,7 +32,7 @@ npm run serve      # http://localhost:8080
 - **Start (real)** creates a session against your backend (key stays on the
   local server, never in the browser) and connects to the returned `ws_url`.
 
-## The two-step integration
+## Two-step integration
 
 1. Server-side, with your API key:
 
@@ -53,4 +53,4 @@ npm run serve      # http://localhost:8080
    await session.start({ wsUrl });
    ```
 
-Docs: https://docs.omnidim.io/docs/sdks/web
+Docs: [docs.omnidim.io/docs/sdks/web](https://docs.omnidim.io/docs/sdks/web)
