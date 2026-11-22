@@ -14,7 +14,7 @@ your agent. The page loads the SDK from the CDN, so there is no build step.
 ## What is in this repo
 
 - `index.html`: the hosted playground (single file, loads the SDK from unpkg).
-- `vanilla.html`: a minimal ~30-line page.
+- `vanilla.html`: a minimal page that starts a session from a pasted `ws_url`.
 - `fullstack/`: the recommended architecture: your server creates the session
   with your API key and hands the browser only the `ws_url`. Includes a mock
   WebSocket server so you can test the whole audio path with no backend.
